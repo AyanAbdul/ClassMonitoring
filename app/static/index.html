@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ClassMonitor — Live Classroom Monitoring</title>
+<link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+<div class="topbar">
+  <div class="brand"><span class="dot"></span> ClassMonitor</div>
+  <div class="user-info">
+    <button class="secondary" id="navSetupBtn" onclick="showView('setup')">New session</button>
+    <button class="secondary" id="navReportsBtn" onclick="showView('reports')">Past sessions</button>
+  </div>
+</div>
+
+<!-- ============ SETUP VIEW ============ -->
+<div id="setupView" class="container">
+  <div class="card setup-form">
+    <h1 style="margin-top:0">Start a monitoring session</h1>
+    <p class="sub" style="color:var(--muted);font-size:14px">Live detection runs entirely on this server — no video is sent anywhere else.</p>
+
+    <label for="className">Class / room name</label>
+    <input type="text" id="className" placeholder="e.g. Period 4 — Room 210">
+
+    <label>Video source</label>
+    <div class="mode-toggle">
+      <button type="button" id="modeWebcamBtn" class="active" onclick="setSourceMode('webcam')">This device's webcam</button>
+      <button type="button" id="modeRtspBtn" onclick="setSourceMode('rtsp')">CCTV / RTSP camera</button>
+    </div>
+
+    <div id="rtspField" class="hidden">
+      <label for="rtspUrl">RTSP stream URL</label>
+      <input type="text" id="rtspUrl" placeholder="rtsp://username:password@camera-ip:554/stream">
+    </div>
+
+    <div id="setupMsg"></div>
+    <button class="full-width" style="margin-top:18px" onclick="startSession()">Start monitoring</button>
+
+    <div class="disclaimer">
+      Attendance here is presence/headcount based — the system counts and tracks people in
+      frame, it does not perform facial recognition or identify anyone biometrically. Hand-raise
+      and head-direction detection are geometric estimates from body pose, not certainties —
+      review the alert log rather than treating any single flag as fact.
+    </div>
+  </div>
+</div>
+
+<!-- ============ LIVE VIEW ============ -->
+<div id="liveView" class="layout hidden">
+  <div>
+    <div class="section-title">
+      <h2 id="liveClassName">Session</h2>
+      <button class="danger" onclick="stopSession()">Stop session</button>
+    </div>
+    <div id="cameraBanner"></div>
+    <div class="video-wrap">
+      <video id="webcamVideo" autoplay muted playsinline class="hidden"></video>
+      <img id="mjpegView" class="hidden">
+      <canvas id="overlay"></canvas>
+    </div>
+
+    <div class="card" style="margin-top:16px">
+      <div class="section-title"><h2>People in frame</h2></div>
+      <div id="peopleList" class="people-list"></div>
+      <div id="peopleEmpty" class="empty-state hidden">No one detected in frame right now.</div>
+    </div>
+  </div>
+
+  <div>
+    <div class="stat-row">
+      <div class="stat-box"><div class="num" id="statHeadcount">0</div><div class="lbl">In frame now</div></div>
+      <div class="stat-box"><div class="num" id="statAttendance">0</div><div class="lbl">Attendance (auto)</div></div>
+    </div>
+    <div class="stat-row">
+      <div class="stat-box hands"><div class="num" id="statHands">0</div><div class="lbl">Hands up</div></div>
+    </div>
+    <div class="stat-row">
+      <div class="stat-box focused"><div class="num" id="statFocused">0</div><div class="lbl">Focused</div></div>
+      <div class="stat-box distracted"><div class="num" id="statDistracted">0</div><div class="lbl">Distracted</div></div>
+    </div>
+
+    <div class="card">
+      <div class="section-title"><h2>Live alerts</h2></div>
+      <div id="alertFeed" class="alert-feed"></div>
+      <div id="alertEmpty" class="empty-state hidden" style="padding:20px">No alerts yet.</div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ REPORTS VIEW ============ -->
+<div id="reportsView" class="container hidden">
+  <div id="reportsListPane">
+    <div class="section-title"><h2>Past sessions</h2></div>
+    <div class="card" style="padding:0">
+      <div id="sessionsList"></div>
+    </div>
+  </div>
+
+  <div id="reportDetailPane" class="hidden">
+    <a href="#" class="back-link" onclick="backToSessionsList(); return false;">&larr; All sessions</a>
+    <div class="section-title">
+      <h2 id="reportClassName"></h2>
+      <button onclick="downloadCsv()">Download CSV report</button>
+    </div>
+    <p class="note-text" id="reportMeta"></p>
+
+    <div class="card" style="margin-bottom:16px">
+      <div class="section-title"><h2>Attendance (presence-based)</h2></div>
+      <table>
+        <thead><tr><th>Track</th><th>Present</th><th>Presence %</th><th>Focus %</th><th>Hand raises</th></tr></thead>
+        <tbody id="attendanceBody"></tbody>
+      </table>
+    </div>
+
+    <div class="card">
+      <div class="section-title"><h2>Alert log</h2></div>
+      <table>
+        <thead><tr><th>Time</th><th>Type</th><th>Track</th><th>Message</th></tr></thead>
+        <tbody id="reportAlertsBody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- TAG MODAL -->
+<div id="tagModal" class="modal-backdrop hidden">
+  <div class="modal">
+    <h3>Label this student</h3>
+    <p class="note-text">This label is just a session note you assign by seat/position — it does not use facial recognition.</p>
+    <label for="tagName">Name or seat label</label>
+    <input type="text" id="tagName" placeholder="e.g. Jordan, or Seat 3">
+    <div id="tagMsg"></div>
+    <div class="modal-actions">
+      <button type="button" class="secondary" onclick="closeModal('tagModal')">Cancel</button>
+      <button type="button" onclick="submitTag()">Save label</button>
+    </div>
+  </div>
+</div>
+
+<script src="/js/util.js"></script>
+<script src="/js/dashboard.js"></script>
+</body>
+</html>

@@ -1,0 +1,14 @@
+.venv/
+__pycache__/
+*.pyc
+.env
+.vscode/
+*.log
+.DS_Store
+models/*.pt
+models/*.onnx
+runs/
+output/
+*.mp4
+*.avi
+*.mov
