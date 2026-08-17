@@ -12,3 +12,7 @@ output/
 *.mp4
 *.avi
 *.mov
+.venv-yolo-gpu/
+test_uniface_*.py
+test_yolo26_benchmark.py
+notepad test_yolo26_benchmark.py
